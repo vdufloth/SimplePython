@@ -7,8 +7,7 @@ from tabulate import tabulate
 
 BLUE = "\033[94m"
 GREEN = "\033[92m"
-RED = "\033[93m"
-YEL = "\e[93mLight"
+YEL = "\033[93m"
 NOC = "\033[0m"
 
 def getParity(s):
@@ -28,7 +27,7 @@ def checkMessage(m):
         parity = getParity(_byte)
         wholeParity += parity
         if m[i + 7] != parity:
-            print(RED+"A paridade de um dos bytes nao bateu!"+NOC)
+            print(YEL+"One of the byte's parity did not match!"+NOC)
             return False
 
     wholeParity = wholeParity[0:len(wholeParity) - 1] #remove o do bcc
@@ -41,11 +40,11 @@ def checkMessage(m):
 
     bcc += getParity(bcc) # adicionar sua paridade ao final
     if (bcc != m[len(m) - 8:]):
-        print(RED+"Paridade do BCC nao bateu!"+NOC, bcc, m[len(m) - 8:], NOC)
+        print(YEL+"BCC parity did not match!"+NOC, bcc, m[len(m) - 8:], NOC)
         return False
 
     if (getParity(wholeParity) != m[len(m) - 1]):
-        print(RED+"Paridade de todas as paridades não bateu!")
+        print(YEL+"All-Parities Parity did not match!")
         return False
 
     return True
@@ -80,33 +79,31 @@ def formMessage(m):
 
     returnMessage += bcc + bccParity
     m_colored += BLUE + bcc + GREEN + bccParity + NOC
-    print(tabulate(table, ["LETRA","ASCII","BINARIO", "PARIDADE"],"grid"))
-    print("Mensagem formada:\n" + m_colored)
+    print(tabulate(table, ["LETTER","ASCII","BINARY", "PARITY"],"grid"))
+    print("Message formed: " + m_colored)
 
     return returnMessage
 
 def interference(m, i):
     lm = list(m)
     changed = False
-    if (random.randrange(100) < i): #50 porcento de chance de interferência
+    if (random.randrange(100) < i):
         position = random.randrange(len(lm))
-        lm[position] = ('1' if lm[position] == '0' else '0')# troca o valor
+        lm[position] = ('1' if lm[position] == '0' else '0')#change the value
         changed = True
 
     return changed, "".join(lm)
 
-percent = int(input("(digitar \"sair\" para sair) \n Qual porcentagem da mensagem sofrer interferencia e ter um byte alterado?\n"))
-message = input("Mensagem:\n")
-while message != "sair":
+percent = int(input("(Type \"exit\" to exit) \n Percent chance of message having one byte changed:\n"))
+message = input("Message:\n")
+while message != "exit":
     message = formMessage(message)
     OK = False
     changed = False
     while not OK:
         changed, messageErrored = interference(message, percent)
-        print(BLUE+"Mensagem sofreu interferencia:\n" + NOC + messageErrored if changed else BLUE+ "Mensagem nao sofreu interferencia."+NOC)
+        print(BLUE+"Message was changed!\n" + NOC + messageErrored if changed else BLUE+ "Message was not changed."+NOC)
         OK = checkMessage(messageErrored)
-        print(GREEN+"Mensagem OK"+NOC if OK else RED+"Nao Ok. Enviando novamente..."+NOC)
+        print(GREEN+"Message OK"+NOC if OK else YEL+"Not OK. Sending again..."+NOC)
 
     message = input("Mensagem:\n")
-
-
