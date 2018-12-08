@@ -1,75 +1,112 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-BLUE = '\033[94m'
-GREEN = '\033[92m'
-RED = '\033[93m'
-NOC = '\033[0m'
+import random
+from builtins import range
+from tabulate import tabulate
 
-s = input()
-allBytes = []
-parityString = ''
-message= ''
-message_colored=''
+BLUE = "\033[94m"
+GREEN = "\033[92m"
+RED = "\033[93m"
+YEL = "\e[93mLight"
+NOC = "\033[0m"
 
 def getParity(s):
-    p=0
+    p = 0
     for digit in s:
-        p += int(digit)        
+        p += int(digit)
     return str(int((p % 2 != 0)))
 
 def checkMessage(m):
-    bcc = ''
     _byte = ''
-    allBytesc = []
+    allBytes = []
+    wholeParity = ''
+
     for i in range(0, len(m), 8):
-        _byte = m[i:i+7]        
-        allBytesc.append(_byte)
-
+        _byte = m[i:i + 7]
+        allBytes.append(_byte)
         parity = getParity(_byte)
-        # print(_byte, parity)
-        if m[i+7] != parity:
-            print(m[i+7], '!=', parity)
-            return 0
-       
-    for i in range(0,7):
+        wholeParity += parity
+        if m[i + 7] != parity:
+            print(RED+"A paridade de um dos bytes nao bateu!"+NOC)
+            return False
+
+    wholeParity = wholeParity[0:len(wholeParity) - 1] #remove o do bcc
+    bcc = ''
+    for i in range(0, 7):
         byteToCheck = ''
-        for j in range (0, len(allBytesc)):
-            byteToCheck += allBytesc[j][i]
+        for j in range(0, len(allBytes) - 1): # - 1 para ignorar o próprio BCC
+            byteToCheck += allBytes[j][i]
         bcc += getParity(byteToCheck)
-    print(bcc, 'm', m[len(m)-8:])
-    # if (bcc != m[len(m)-8:])
-    return 1
 
-for c in (s):
-    n = ord(c) #transforma no inteiro ASCII
-    parity = ''
-    b = bin(n) #transforma em binario
-    b = b[2:] #remove o 0b
-    allBytes.append(b)
-    parity = getParity(b)
-    message += b + parity
-    message_colored += b  + GREEN + parity + NOC
+    bcc += getParity(bcc) # adicionar sua paridade ao final
+    if (bcc != m[len(m) - 8:]):
+        print(RED+"Paridade do BCC nao bateu!"+NOC, bcc, m[len(m) - 8:], NOC)
+        return False
 
-    print(c, n, b, parity)
+    if (getParity(wholeParity) != m[len(m) - 1]):
+        print(RED+"Paridade de todas as paridades não bateu!")
+        return False
 
-# allBytes[1][1] + allBytes[2][1] + allBytes [3][1] ate len
-#depois all bytes [1][2] ate 7
-bcc = ''
-for i in range(0,7):
-    byteToCheck = ''
-    for j in range (0, len(allBytes)):
-        byteToCheck += allBytes[j][i]
-    bcc += getParity(byteToCheck)
+    return True
 
-bccParity = getParity(bcc)
-message += bcc + bccParity
-message_colored += BLUE + bcc + GREEN + bccParity + NOC
-print('=   ',bcc, bccParity)
-print(message_colored)
-print(message)
+def formMessage(m):
+    table = []
+    tablefmt = "grid"
 
-checkMessage(message)
-# print(checkMessage())
+    allBytes = []
+    m_colored = ''
+    returnMessage = ''
+    for c in (m):
+        n = ord(c)  # transforma no inteiro ASCII
+        b = bin(n)  # transforma em binario
+        b = b[2:]  # remove o b
+        allBytes.append(b)
+        parity = getParity(b)
+        returnMessage += b + parity
+        m_colored += b + GREEN + parity + NOC
+
+        table.append([c, n, b, parity])
+
+    bcc = ''
+    for i in range(0, 7):
+        byteToCheck = ''
+        for j in range(0, len(allBytes)):
+            byteToCheck += allBytes[j][i]
+        bcc += getParity(byteToCheck)
+
+    bccParity = getParity(bcc)
+    table.append(["BCC","-", bcc, bccParity])
+
+    returnMessage += bcc + bccParity
+    m_colored += BLUE + bcc + GREEN + bccParity + NOC
+    print(tabulate(table, ["LETRA","ASCII","BINARIO", "PARIDADE"],"grid"))
+    print("Mensagem formada:\n" + m_colored)
+
+    return returnMessage
+
+def interference(m, i):
+    lm = list(m)
+    changed = False
+    if (random.randrange(100) < i): #50 porcento de chance de interferência
+        position = random.randrange(len(lm))
+        lm[position] = ('1' if lm[position] == '0' else '0')# troca o valor
+        changed = True
+
+    return changed, "".join(lm)
+
+percent = int(input("(digitar \"sair\" para sair) \n Qual porcentagem da mensagem sofrer interferencia e ter um byte alterado?\n"))
+message = input("Mensagem:\n")
+while message != "sair":
+    message = formMessage(message)
+    OK = False
+    changed = False
+    while not OK:
+        changed, messageErrored = interference(message, percent)
+        print(BLUE+"Mensagem sofreu interferencia:\n" + NOC + messageErrored if changed else BLUE+ "Mensagem nao sofreu interferencia."+NOC)
+        OK = checkMessage(messageErrored)
+        print(GREEN+"Mensagem OK"+NOC if OK else RED+"Nao Ok. Enviando novamente..."+NOC)
+
+    message = input("Mensagem:\n")
 
 
